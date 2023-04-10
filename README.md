@@ -8,6 +8,6 @@ of this project pre-upload to this github.
 The project can be constructed using the Makefile commands
 * make clean
 * make
-which will produce an executable `*allocate.exe*`. This program is then run with
-the command *./allocate -f <file name of processes file> -s <{SJF,RR}> ...
- ... -m <{infinite,best-fit}> -q <{1,2,3}>*
+which will produce an executable '*allocate.exe*'. This program is then run with
+the command *./allocate -f <file name of processes file> -s <{SJF,RR}> ...*
+ *... -m <{infinite,best-fit}> -q <{1,2,3}>*
