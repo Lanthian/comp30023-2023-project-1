@@ -1,0 +1,44 @@
+2023.04.10
+
+Ello ello marker! Hope your day has been alright so far.
+
+Just read through the rubric now to discover the version control mark. I haven't 
+had internet on the device that I've been using to tinker away at this project 
+over the past few days, so I didn't bother with a git repository, instead 
+opting for frequent local and physical backups between large changes in the code
+-- both on the machine this has been submitted from and a USB I have beside me 
+right this very moment!
+
+I can't exactly un-work all the code and progress I've made to then resubmit it 
+in steps to fulfil this criteria properly, so I figured I'd leave a note here.
+
+Rough order of completion, looking back through backups, is as follows:
+    Makefile created w/ "HelloWorld" test in main.c
+    Argument reading in implemented w/ constants defined
+    process.c initial implementation, moving some constants from main.c to
+        process.h file.
+    Main.c modified to test `Process` struct allocation and freeing
+    ll.c & ll.h node implementation
+    ll.c linked list struct and functions implemented
+    ll.h / process.h clash resolved when making main.o
+    Initial linked list test of processes added to main.c
+    main.c process simulation implemented
+    Process simulation changed to be non-concurrent (clock validation)
+    `unloaded` and `ready` linked lists added with proper simulation
+    current_p_node implemented to resolve some logic issues
+    Linked list add modified to consider SJF of non-active processes
+    Round robin approach extended from current simulation implementation
+    Code in clock-running section modified to properly reflect process queuing
+        and dequeuing
+    Best-fit memory implemented w/out freeing memory
+    Simulated memory freeing and best-fit now tied to arguments read in
+    A large number of temps/todos removed to tidy code
+    First official commit to github
+        "Initial commit pre task3.4 from local machine"
+    Makefile `clean` fixed, .gitignore added
+    README and versioncontrol.txt added to project submission 
+
+I hope this level of logging will suffice for evidence of proper software 
+practice.
+
+Have a good one!  c:
