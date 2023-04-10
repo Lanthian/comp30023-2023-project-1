@@ -17,4 +17,6 @@ format:
 
 
 clean:
-	rm *.o
+# `rm` didn't work below yet worked in terminal, so `del` used instead 
+	del *.o
+	del $(EXE).exe
