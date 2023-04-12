@@ -5,9 +5,15 @@
     main() implementation of project.
 */
 
+#define IMPLEMENTS_REAL_PROCESS
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define _XOPEN_SOURCE 600
+#include <sys/types.h>        // todo / type
+#include <unistd.h>
 
 // --- Local headers ---
 // #include "proc.h"        Not needed as proc.h included in ll.h
@@ -134,6 +140,9 @@ int main(int argc, char* argv[]) {
 
     float temp_turnaround, temp_overhead;
 
+    //todo
+    int root = getpid();
+
     // Ordering works on the assumption that processes with zero work time cannot exist
     node* current_p_node = NULL;
     int can_store = 1;
@@ -249,6 +258,15 @@ int main(int argc, char* argv[]) {
         // - Work process if ready and queued -
         if (current_p_node != NULL) {
             workProcess(current_p_node->process, quantum);
+            
+            // todo / temp
+            pid_t forklevel;
+            forklevel = fork();
+            if (forklevel == 0) {
+                // Child process - exec time
+                printf("Oh hey, I'm baby?\n");
+                exit(2);
+            }
         }
 
         // - Tick clock, quitting before final quantum tick if done -
