@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
     // Abort now if no processes read in or any step fails
     if (first_Proc == NULL) return 0;
     // Generate linkedlist with first process
-    linkedList* unloaded = createLinkedList(createNode(first_Proc));
+    linkedList* unloaded = createLinkedList(createNode(first_Proc));        // input queue
     linkedList* ready = createEmptyLL();
 
     // Keep reading processes into the linkedlist
@@ -187,7 +187,7 @@ int main(int argc, char* argv[]) {
                         exit(EXIT_FAILURE);
                     }
                     // Otherwise just break and try assigning once freeing up some other processes
-                    break;      // todo - might have to manage this differently
+                    break;      
                 }
 
                 // Search for a continuous portion of memory to allocate the process

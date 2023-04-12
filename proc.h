@@ -3,7 +3,7 @@
     University of Melbourne, COMP30023 Project 1 implementation
 */
 
-#define MAX_NAME_LENGTH 50
+#define MAX_NAME_LENGTH 9
 #define MEM_UNASSIGNED -1
 
 typedef struct {

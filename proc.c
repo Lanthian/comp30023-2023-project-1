@@ -5,6 +5,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 // Local header
 #include "proc.h"
@@ -55,7 +56,8 @@ void freeProcess(Process* process) {
 
 /*
   Decreases the time left on a Process `process` by a work time defined 
-  `quantum`. Time left can never decrease below 0.
+  `quantum`. Time left can never decrease below 0. Working a complete process
+  achieves nothing.
 */
 void workProcess(Process* process, int quantum) {
     process->time_left -= quantum;
@@ -66,11 +68,22 @@ void workProcess(Process* process, int quantum) {
 
 
 /*
-  Returns a positive integer if first process length is longer than second, 
-  negative if reverse, and 0 if equal.
+  Compares two processes. Returns a positive integer if the first process is 
+  greater (should be ordered according to SJF) than the second process.
+  Checks in order of service time, arrival time then finally process name.
+  Returns 0 if processes are otherwise determined equal.
+
+  Uses string.h strcmp() function.
 */
 int compareProcess(Process* p1, Process* p2) {
-    return (p1->time_left - p2->time_left);
+    // Return service time difference...
+    int t = (p1->service_time - p2->service_time);
+    if (t != 0) return t;
+    // Or read time difference if equal...
+    t = (p1->read_time - p2->read_time);
+    if (t != 0) return t;
+    // Or name difference if still equal
+    return strcmp(p1->name, p2->name);
 }
 
 /*
@@ -81,7 +94,7 @@ int isDone(Process* process) {
 }
 
 
-// Remaining getters
+// Remaining getters (Technically not needed but safer than just accessing structure)
 
 int getTimeLeft(Process* process) {
     return process->time_left;
