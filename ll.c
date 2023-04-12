@@ -54,6 +54,10 @@ void freeNode(node* n) {
 }
 
 
+/*
+  Mallocs and returns a linked list, instantiated from head & tail node `n`. 
+  Returns NULL if no space in memory left for linked list.
+*/
 linkedList* createLinkedList(node* n) {
     // Assumes n->next == NULL to work
     linkedList* ll = (linkedList*)malloc(sizeof(linkedList));
@@ -69,6 +73,10 @@ linkedList* createLinkedList(node* n) {
 }
 
 
+/*
+  Mallocs and returns an empty linked list, with head and tail set to NULL. 
+  Returns NULL if no space in memory left for linked list.
+*/
 linkedList* createEmptyLL() {
     // Assumes n->next == NULL to work
     linkedList* ll = (linkedList*)malloc(sizeof(linkedList));
@@ -84,6 +92,11 @@ linkedList* createEmptyLL() {
 }
 
 
+/*
+  Mallocs and returns a node pointer to a node storing input process pointer 
+  `p`. Returns NULL if no space in memory left for node.
+  (Node 'next' is set to NULL by default)
+*/
 node* createNode(Process* p) {
     node* n = (node*)malloc(sizeof(node));
     if (n == NULL) {
@@ -97,7 +110,12 @@ node* createNode(Process* p) {
 }
 
 
-// TODO - better strat
+/*
+  Inserts a node `n` into linked list `list` according to scheduling strategy
+  `scheduler` which alligns with SJF_I or RR_I constants. If Round robin, just
+  appends node to the end of the list. If SJF, inserts node into desired point
+  in the list, using proc.h's compareProcess() function.
+*/
 void insertLLNode(linkedList* list, node* n, int scheduler) {
     list->size += 1;
 
@@ -144,12 +162,20 @@ void insertLLNode(linkedList* list, node* n, int scheduler) {
 }
 
 
-// TODO - currently just appends at list end
+/*
+  Inserts a process `p` into linked list `list` using default insertion strategy
+  of TIME_WEIGHT_I (mimics Round Robin). Mallocs a node `n`, then inserted into 
+  the list through utilisation of the insertLLNode function defined here.
+  Can print an error message and return having not inserted the process if there
+  is no space in memory to malloc node.
+*/
 void insertLLData(linkedList* list, Process* p) {
     // If no space for new process just return, having done nothing
     node* n = createNode(p);
-    // todo -- add notice here that nothing has happened
-    if (n==NULL) return;
+    if (n==NULL) {
+        printf("No memory left for node generation - Process not inserted into linked list.\n");
+        return;
+    }
 
     insertLLNode(list, n, TIME_WEIGHT_I);
 }
@@ -175,6 +201,8 @@ int remainingTime(linkedList* list) {
 
 /*
   Pops the first element out of a linked list and returns this node pointer.
+  Decreases linked list size when doing so, setting tail pointer to NULL if size
+  reaches 0. 
 */
 node* pop(linkedList* list) {
     // Check list isn't empty (return NULL if so)

@@ -1,6 +1,8 @@
 /*
     Created by Liam Anthian: 2023.04.05 for 
     University of Melbourne, COMP30023 Project 1 implementation
+
+    Contains Process data structure and accompanying functions.
 */
 
 #define MAX_NAME_LENGTH 9
@@ -30,6 +32,7 @@ int isDone(Process* process);
 
 
 // Getters
+
 int getTimeLeft(Process* process);
 int getReadTime(Process* process);
 int getServiceTime(Process* process);
@@ -37,4 +40,5 @@ int getMemSize(Process* process);
 int getMemLoc(Process* process);
 
 // Setters
+
 void setMemLoc(Process* process, int loc);

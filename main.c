@@ -1,6 +1,8 @@
 /*
     Created by Liam Anthian: 2023.04.05 for 
     University of Melbourne, COMP30023 Project 1 implementation
+
+    main() implementation of project.
 */
 
 #include <stdio.h>
@@ -8,7 +10,7 @@
 #include <string.h>
 
 // --- Local headers ---
-// #include "proc.h"        proc.h included in ll.h todo
+// #include "proc.h"        Not needed as proc.h included in ll.h
 #include "ll.h"
 
 
@@ -184,6 +186,11 @@ int main(int argc, char* argv[]) {
                     if (process_size > STARTING_MEMORY) {
                         fprintf(OUTPUT, "Process <%s> has an unassignable size of <%d>. Program terminating.\n",
                             unloaded->head->process->name, process_size);
+
+                        freeLinkedList(unloaded);
+                        unloaded = NULL;
+                        freeLinkedList(ready);
+                        ready = NULL;
                         exit(EXIT_FAILURE);
                     }
                     // Otherwise just break and try assigning once freeing up some other processes
