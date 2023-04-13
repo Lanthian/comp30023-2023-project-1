@@ -15,8 +15,10 @@ typedef struct {
     int time_left;
     int mem_size;
     int assigned_loc;
+    // process.c used details
     pid_t pid;
-    int pipe[2];
+    int fd_from_c;
+    int fd_to_c;
 } Process;
 
 

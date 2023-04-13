@@ -266,39 +266,51 @@ int main(int argc, char* argv[]) {
         if (current_p_node != NULL) {            
             // If it's the first time a process is run, produce the actual process.exe of it
             if (getServiceTime(current_p_node->process) == getTimeLeft(current_p_node->process)) {
-                pid_t pid;
-                int fd[2];
-                pipe(fd);
+                pid_t c_pid;
+                int p_fd[2], c_fd[2];       // parent file descriptor, child file discripter
+                pipe(p_fd);
+                pipe(c_fd);
 
-                pid = fork();
-                printf("-%d   ", pid);
-                if (pid == 0) {
-                    // Child process - exec process
-                    dup2(fd[0], STDIN_FILENO); // read stdin of pipe read end to stdin
-                    dup2(fd[1], STDOUT_FILENO);  // write stdout of process to pipe write end
+                c_pid = fork();
+                printf("Child pid: %d   ", c_pid);          // todo - remove
+
+                // If child process - exec process
+                if (c_pid == 0) {
+                    // Link reading and writing of parent and child fd-s
+                    close(c_fd[0]);                 // parent reads this - child doesn't need access
+                    close(p_fd[1]);                 // parent writes here - child doesn't need access
+
+                    dup2(p_fd[0], STDIN_FILENO);    // new stdin of child (reading from p-out)
+                    dup2(c_fd[1], STDOUT_FILENO);   // new stdout of child (writing to c-out)
 
                     char* args[] = {"./process", current_p_node->process->name, "-v", NULL};
                     execv(args[0], args);
+
                     // If code reaches here, execv has failed
                     fprintf(OUTPUT, "Failure executing process. Aborting program.\n");
                     exit(EXIT_FAILURE);
 
-                } else if (pid > 0) {
-                    // Parent process - archive pid and pipe
-                    setProcessId(current_p_node->process, pid);
-                    memcpy(current_p_node->process->pipe, fd, 2*sizeof(int));
+                // If parent process - archive pid, fd-s and send start sim time
+                } else if (c_pid > 0) {
+                    // Close unused filedescriptors
+                    close(p_fd[0]);                 // child reads this - parent doesn't need access
+                    close(c_fd[1]);                 // child writes here - parent doesn't need access
+                    // Store child pid and connections with child process
+                    setProcessId(current_p_node->process, c_pid);
+                    current_p_node->process->fd_from_c = c_fd[0];
+                    current_p_node->process->fd_to_c = p_fd[1];
                     
+                    // todo - remove
                     // nbytes = read(fd[0], readbuffer, sizeof(readbuffer));
                     // printf("From child: %s", readbuffer);
 
                     // Generate 32 bit simulation start time in Big Endian format
-                    uint32_t simTime = current_p_node->process->service_time;
-                    uint8_t* num = intToBigEndian(simTime);
-                    printf("%02x %02x %02x %02x\n", num[0], num[1], num[2], num[3]);        // todo
+                    uint32_t start_time = current_p_node->process->service_time;
+                    uint8_t* num = intToBigEndian(start_time);
+                    printf("%02x %02x %02x %02x\n", num[0], num[1], num[2], num[3]);        // todo remove
                     
                     // Send 32 bit start time to process
-                    nbytes = write(current_p_node->process->pipe[1], num, (4));
-                    
+                    nbytes = write(current_p_node->process->fd_to_c, num, (4));
                     if (nbytes == -1) {
                         // Failure to write
                         fprintf(OUTPUT, "Failed to write to process %s of pid [%d], terminating.\n", 
@@ -306,20 +318,22 @@ int main(int argc, char* argv[]) {
                         exit(EXIT_FAILURE);
                     }
 
-                    // Veryify send success by reading back a byte
+                    // Veryify send success by reading back a least significant byte
                     uint8_t verifying_byte;
-                    nbytes = read(current_p_node->process->pipe[0], &verifying_byte, 1);
+                    nbytes = read(current_p_node->process->fd_from_c, &verifying_byte, 1);
                     if (nbytes == -1) {
                         // Failure to read
                         fprintf(OUTPUT, "Failed to read from process %s of pid [%d], terminating.\n", 
                             current_p_node->process->name, current_p_node->process->pid);
                         exit(EXIT_FAILURE);
                     }
-                    printf("<<%02x>>", verifying_byte);
+                    if (verifying_byte != num[sizeof(num)-1]) {
+                        // Byte sent does not equal byte read back...
+                        printf("ERROR: Byte returned via child process stdout does not much byte sent.\n");
+                        exit(EXIT_FAILURE);
+                    }
                     free(num);      // Free up uint8_t array
 
-
-                    // Read a byte to ensure process is copied correctly
                 } else {
                     // Fork error
                     fprintf(OUTPUT, "Failure forking. Exiting program.\n");
@@ -327,6 +341,7 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 // printf("Yeah?\n");
+                // todo
             }
             // todo / temp
         
