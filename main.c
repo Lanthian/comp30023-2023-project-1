@@ -329,7 +329,8 @@ int main(int argc, char* argv[]) {
                     }
                     if (verifying_byte != num[sizeof(num)-1]) {
                         // Byte sent does not equal byte read back...
-                        printf("ERROR: Byte returned via child process stdout does not much byte sent.\n");
+                        printf("ERROR: Byte returned via child process stdout [%02x] does not match byte sent [%02x].\n", 
+                            verifying_byte, num[sizeof(num)-1]);
                         exit(EXIT_FAILURE);
                     }
                     free(num);      // Free up uint8_t array

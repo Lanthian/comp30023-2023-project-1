@@ -1,2 +1,5 @@
 *.o
 allocate.exe
+allocate
+*.BAK
+BACKUP*/
