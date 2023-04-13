@@ -1,7 +1,8 @@
 EXE=allocate
 
 $(EXE): main.o proc.o ll.o
-	gcc -Wall -o $(EXE) main.o proc.o ll.o
+	gcc -Wall -o $(EXE) main.o proc.o ll.o -lm
+# Includes -lm to link library with math for ceil() function
 
 main.o: main.c ll.h
 	gcc -Wall -o main.o main.c -c

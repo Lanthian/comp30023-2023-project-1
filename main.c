@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 // todo
 #include <sys/types.h>
@@ -173,7 +174,7 @@ int main(int argc, char* argv[]) {
                 uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, PRINT_32BIT_TIMES);
                 kill(current_p_node->process->pid, SIGTERM);
                 read(current_p_node->process->fd_from_c, &sha256, sizeof(sha256));
-                fprintf(OUTPUT, "%d,FINISHED,process_name=%s,sha=%s\n",
+                fprintf(OUTPUT, "%d,FINISHED-PROCESS,process_name=%s,sha=%s\n",
                     clock, current_p_node->process->name, sha256);
                 
 
@@ -310,7 +311,7 @@ int main(int argc, char* argv[]) {
                     dup2(p_fd[0], STDIN_FILENO);    // new stdin of child (reading from p-out)
                     dup2(c_fd[1], STDOUT_FILENO);   // new stdout of child (writing to c-out)
 
-                    char* args[] = {"./process", current_p_node->process->name, NULL};
+                    char* args[] = {"./process", current_p_node->process->name, "-v", NULL};
                     execv(args[0], args);
 
                     // If code reaches here, execv has failed
@@ -361,7 +362,7 @@ int main(int argc, char* argv[]) {
 
 
     // --- Print summary ---
-    fprintf(OUTPUT, "Turnaround time %.0f\n", avg_turnaround/(float)total_processes);
+    fprintf(OUTPUT, "Turnaround time %.0f\n", ceil(avg_turnaround/(float)total_processes));
     fprintf(OUTPUT, "Time overhead %.2f %.2f\n", max_overhead, avg_overhead/(float)total_processes);
     fprintf(OUTPUT, "Makespan %d\n", clock);
 
