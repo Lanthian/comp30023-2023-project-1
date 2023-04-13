@@ -17,6 +17,12 @@ format:
 
 
 clean:
-# `rm` didn't work below yet worked in terminal, so `del` used instead 
-	del *.o
-#	del $(EXE).exe
+	rm *.o
+	rm allocate.exe
+
+process: process.o
+	gcc -Wall -o process process.o
+
+process.o: process.c
+	gcc -Wall -o process.o process.c -c
+	

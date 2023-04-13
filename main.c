@@ -11,9 +11,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define _XOPEN_SOURCE 600
 #include <sys/types.h>        // todo / type
 #include <unistd.h>
+#include <stdint.h>
 
 // --- Local headers ---
 // #include "proc.h"        Not needed as proc.h included in ll.h
@@ -41,6 +41,10 @@
 // Arg indexes
 #define MINUS_INDEX 0
 #define COMMAND_INDEX 1
+
+
+// Local function headers
+uint8_t* intToBigEndian(int x);
 
 
 int main(int argc, char* argv[]) {
@@ -142,6 +146,9 @@ int main(int argc, char* argv[]) {
 
     //todo
     int root = getpid();
+    // int fd[2], nbytes;
+    char readbuffer[80];
+    // pipe(fd);
 
     // Ordering works on the assumption that processes with zero work time cannot exist
     node* current_p_node = NULL;
@@ -256,17 +263,60 @@ int main(int argc, char* argv[]) {
         }
 
         // - Work process if ready and queued -
-        if (current_p_node != NULL) {
-            workProcess(current_p_node->process, quantum);
-            
-            // todo / temp
-            pid_t forklevel;
-            forklevel = fork();
-            if (forklevel == 0) {
-                // Child process - exec time
-                printf("Oh hey, I'm baby?\n");
-                exit(2);
+        if (current_p_node != NULL) {            
+            // If it's the first time a process is run, produce the actual process.exe of it
+            if (getServiceTime(current_p_node->process) == getTimeLeft(current_p_node->process)) {
+                pid_t pid;
+                int fd[2];
+                pipe(fd);
+
+
+                // todo / temp
+                printf("%08x\n", 640);
+
+
+                pid = fork();
+                printf("-%d   ", pid);
+                if (pid == 0) {
+                    // Child process - exec process
+                    dup2(fd[1], 1); // write stdout of process to pipe end
+
+                    char* args[] = {"./process", current_p_node->process->name, "-v", NULL};
+                    execv(args[0], args);
+                    // If code reaches here, execv has failed
+                    fprintf(OUTPUT, "Failure executing process. Aborting program.\n");
+                    exit(EXIT_FAILURE);
+
+                } else if (pid > 0) {
+                    // Parent process - archive pid and pipe
+                    setProcessId(current_p_node->process, pid);
+                    memcpy(current_p_node->process->pipe, fd, 2*sizeof(int));
+                    // (current_p_node->process->pipe) = fd;
+                    // nbytes = read(fd[0], readbuffer, sizeof(readbuffer));
+                    // printf("From child: %s", readbuffer);
+                    // Send 32 bit simulation start time to process
+
+                    uint32_t simTime = current_p_node->process->service_time;
+                    uint8_t* num = intToBigEndian(simTime);
+                    printf("%02x %02x %02x %02x\n", num[0], num[1], num[2], num[3]);        // todo
+                    
+                    write(current_p_node->process->pipe[0], num, (4));
+                    free(num);
+
+                    // Read a byte to ensure process is copied correctly
+                } else {
+                    // Fork error
+                    fprintf(OUTPUT, "Failure forking. Exiting program.\n");
+                    exit(EXIT_FAILURE);
+                }
+            } else {
+                // printf("Yeah?\n");
             }
+            // todo / temp
+        
+
+
+            workProcess(current_p_node->process, quantum);
         }
 
         // - Tick clock, quitting before final quantum tick if done -
@@ -288,4 +338,31 @@ int main(int argc, char* argv[]) {
 
 
     return 0;
+}
+
+uint8_t* intToBigEndian(int x) {
+    uint8_t *num = (uint8_t*)malloc(sizeof(uint8_t)*4);
+    if (num == NULL) {
+        // No space, print error and return NULL
+        printf("Error - no space in memory to malloc byte array");
+        return NULL;
+    }
+
+    int count = 0, start_storing = 0;
+    uint8_t byte;
+    // Iterate through number, breaking into bytes with bitwise operators
+    for (int i = 0; i<4; i++) {
+        byte = (x>>(24-(8*i)) & 0xFF);
+        // For Big Endian start with non zeros (skip precursing zero bytes)
+        if ((byte) != 0) start_storing = 1;
+        if (start_storing) {
+            num[count++] = byte;
+        }
+    }
+    // Fill in remaining 0 bytes on end
+    for (count; count<4; count++) {
+        num[count] = 0;
+    }
+
+    return num;
 }

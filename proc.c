@@ -111,9 +111,15 @@ int getMemSize(Process* process) {
 int getMemLoc(Process* process) {
     return process->assigned_loc;
 }
+pid_t getProcessId(Process* process) {
+    return process->pid;
+}
 
 // Setter(s)
 
 void setMemLoc(Process* process, int loc) {
     process->assigned_loc = loc;
+}
+void setProcessId(Process* process, pid_t pid) {
+    process->pid = pid;
 }

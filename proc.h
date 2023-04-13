@@ -15,6 +15,8 @@ typedef struct {
     int time_left;
     int mem_size;
     int assigned_loc;
+    pid_t pid;
+    int pipe[2];
 } Process;
 
 
@@ -38,7 +40,9 @@ int getReadTime(Process* process);
 int getServiceTime(Process* process);
 int getMemSize(Process* process);
 int getMemLoc(Process* process);
+pid_t getProcessId(Process* process);
 
 // Setters
 
 void setMemLoc(Process* process, int loc);
+void setProcessId(Process* process, pid_t pid);
