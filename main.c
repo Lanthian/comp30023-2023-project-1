@@ -11,9 +11,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <sys/types.h>        // todo / type
+// todo
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <signal.h>
 
 // --- Local headers ---
 // #include "proc.h"        Not needed as proc.h included in ll.h
@@ -41,6 +44,9 @@
 // Arg indexes
 #define MINUS_INDEX 0
 #define COMMAND_INDEX 1
+
+// process.c togglers
+#define PRINT_32BIT_TIMES 0
 
 
 // Local function headers
@@ -148,7 +154,7 @@ int main(int argc, char* argv[]) {
 
     //todo
     int root = getpid();
-    char readbuffer[80];
+    char sha256[64];
     // pipe(fd);
 
     // Ordering works on the assumption that processes with zero work time cannot exist
@@ -162,6 +168,14 @@ int main(int argc, char* argv[]) {
             if (getTimeLeft(current_p_node->process) == 0) {
                 fprintf(OUTPUT, "%d,FINISHED,process_name=%s,proc_remaining=%d\n",
                     clock, current_p_node->process->name, ready->size);
+                
+                // Terminate real process
+                uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, PRINT_32BIT_TIMES);
+                kill(current_p_node->process->pid, SIGTERM);
+                read(current_p_node->process->fd_from_c, &sha256, sizeof(sha256));
+                fprintf(OUTPUT, "%d,FINISHED,process_name=%s,sha=%s\n",
+                    clock, current_p_node->process->name, sha256);
+                
 
                 // Free simulated memory
                 int loc = getMemLoc(current_p_node->process);
@@ -186,6 +200,17 @@ int main(int argc, char* argv[]) {
 
             // - Otherwise requeue process to ready queue if using RR approach -
             else if ((scheduler == RR_I) && ready->size>0) {
+                // Suspend real process
+                uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, PRINT_32BIT_TIMES);
+                kill(current_p_node->process->pid, SIGTSTP);
+                // (making sure process is suspended before continuing)
+                int wstatus;
+                pid_t w = waitpid(current_p_node->process->pid, &wstatus, WUNTRACED);
+                if (WIFSTOPPED(wstatus)) {
+                    // todo     -------------- sooner than later lym!!
+                }
+
+                // Requeue simulated process
                 insertLLNode(ready, current_p_node, scheduler);
                 current_p_node = NULL;
             }
@@ -263,9 +288,10 @@ int main(int argc, char* argv[]) {
                 getTimeLeft(current_p_node->process));
         }
 
+
         // - Work process if ready and queued -
         if (current_p_node != NULL) {            
-            // If it's the first time a process is run, produce the actual process.exe of it
+            // If it's the first time a process is run, produce the actual process.exe of it and send it start time
             if (getServiceTime(current_p_node->process) == getTimeLeft(current_p_node->process)) {
                 pid_t c_pid;
                 int p_fd[2], c_fd[2];       // parent file descriptor, child file discripter
@@ -273,7 +299,7 @@ int main(int argc, char* argv[]) {
                 pipe(c_fd);
 
                 c_pid = fork();
-                printf("Child pid: %d   ", c_pid);          // todo - remove
+                // printf("Child pid: %d   ", c_pid);          // todo - remove
 
                 // If child process - exec process
                 if (c_pid == 0) {
@@ -284,7 +310,7 @@ int main(int argc, char* argv[]) {
                     dup2(p_fd[0], STDIN_FILENO);    // new stdin of child (reading from p-out)
                     dup2(c_fd[1], STDOUT_FILENO);   // new stdout of child (writing to c-out)
 
-                    char* args[] = {"./process", current_p_node->process->name, "-v", NULL};
+                    char* args[] = {"./process", current_p_node->process->name, NULL};
                     execv(args[0], args);
 
                     // If code reaches here, execv has failed
@@ -300,12 +326,9 @@ int main(int argc, char* argv[]) {
                     setProcessId(current_p_node->process, c_pid);
                     current_p_node->process->fd_from_c = c_fd[0];
                     current_p_node->process->fd_to_c = p_fd[1];
-                    
-                    // todo - remove
-                    // nbytes = read(fd[0], readbuffer, sizeof(readbuffer));
-                    // printf("From child: %s", readbuffer);
 
-                    uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, 1);
+                    // Sent start simulation time and verify least significant byte parsed successfully
+                    uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, PRINT_32BIT_TIMES);
                     verifyLeastSigByte(current_p_node->process, time_32bit);
 
                 } else {
@@ -315,15 +338,15 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 // Otherwise, update or resume process with new time
-                // send32bitTime(current_p_node->process, clock, 1);
-                // kill(current_p_node->process->pid, SIGCONT);
+                uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, PRINT_32BIT_TIMES);
+                kill(current_p_node->process->pid, SIGCONT);
+                verifyLeastSigByte(current_p_node->process, time_32bit);
             }
-            // todo / temp
-        
-
-
+    
+            // Work simulated process
             workProcess(current_p_node->process, quantum);
         }
+
 
         // - Tick clock, quitting before final quantum tick if done -
         if ((ready->size == 0) && (unloaded->size == 0) && (current_p_node == NULL)) break;
