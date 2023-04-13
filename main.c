@@ -146,7 +146,7 @@ int main(int argc, char* argv[]) {
 
     //todo
     int root = getpid();
-    // int fd[2], nbytes;
+    int nbytes;
     char readbuffer[80];
     // pipe(fd);
 
@@ -270,16 +270,12 @@ int main(int argc, char* argv[]) {
                 int fd[2];
                 pipe(fd);
 
-
-                // todo / temp
-                printf("%08x\n", 640);
-
-
                 pid = fork();
                 printf("-%d   ", pid);
                 if (pid == 0) {
                     // Child process - exec process
-                    dup2(fd[1], 1); // write stdout of process to pipe end
+                    dup2(fd[0], STDIN_FILENO); // read stdin of pipe read end to stdin
+                    dup2(fd[1], STDOUT_FILENO);  // write stdout of process to pipe write end
 
                     char* args[] = {"./process", current_p_node->process->name, "-v", NULL};
                     execv(args[0], args);
@@ -291,17 +287,37 @@ int main(int argc, char* argv[]) {
                     // Parent process - archive pid and pipe
                     setProcessId(current_p_node->process, pid);
                     memcpy(current_p_node->process->pipe, fd, 2*sizeof(int));
-                    // (current_p_node->process->pipe) = fd;
+                    
                     // nbytes = read(fd[0], readbuffer, sizeof(readbuffer));
                     // printf("From child: %s", readbuffer);
-                    // Send 32 bit simulation start time to process
 
+                    // Generate 32 bit simulation start time in Big Endian format
                     uint32_t simTime = current_p_node->process->service_time;
                     uint8_t* num = intToBigEndian(simTime);
                     printf("%02x %02x %02x %02x\n", num[0], num[1], num[2], num[3]);        // todo
                     
-                    write(current_p_node->process->pipe[0], num, (4));
-                    free(num);
+                    // Send 32 bit start time to process
+                    nbytes = write(current_p_node->process->pipe[1], num, (4));
+                    
+                    if (nbytes == -1) {
+                        // Failure to write
+                        fprintf(OUTPUT, "Failed to write to process %s of pid [%d], terminating.\n", 
+                            current_p_node->process->name, current_p_node->process->pid);
+                        exit(EXIT_FAILURE);
+                    }
+
+                    // Veryify send success by reading back a byte
+                    uint8_t verifying_byte;
+                    nbytes = read(current_p_node->process->pipe[0], &verifying_byte, 1);
+                    if (nbytes == -1) {
+                        // Failure to read
+                        fprintf(OUTPUT, "Failed to read from process %s of pid [%d], terminating.\n", 
+                            current_p_node->process->name, current_p_node->process->pid);
+                        exit(EXIT_FAILURE);
+                    }
+                    printf("<<%02x>>", verifying_byte);
+                    free(num);      // Free up uint8_t array
+
 
                     // Read a byte to ensure process is copied correctly
                 } else {

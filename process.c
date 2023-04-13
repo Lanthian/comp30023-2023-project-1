@@ -5,7 +5,7 @@
 	https://www.gnu.org/software/libc/manual/html_node/Feature-Test-Macros.html
 	Comments deliberately kept sparse and brief
 	Please report any issues on Ed
-	Last updated 21/03/23
+	Last updated 10/04/23
 */
 
 #define _POSIX_C_SOURCE 1
@@ -192,7 +192,7 @@ void read_store_dword(Op op, uint8_t hash_content[128], size_t* dest_index) {
 
 	if (verbose_flag) {
 		fprintf(stderr,
-				"[process.c (%ld)] op %d, time %d, hex bytes [%02x, %02x, "
+				"[process.c (%ld)] op %d, time %u, hex bytes [%02x, %02x, "
 				"%02x, %02x]\n",
 				pid, op,
 				((uint32_t)buf[1]) << 24 | ((uint32_t)buf[2]) << 16 |
@@ -218,12 +218,15 @@ void read_store_dword(Op op, uint8_t hash_content[128], size_t* dest_index) {
 		}
 		fsync(STDOUT_FILENO);
 		fflush(stdout);
+
+		if (verbose_flag) {
+			fprintf(stderr,
+					"[process.c (%ld)] wrote hex byte [%02x] to stdout\n", pid,
+					buf[4]);
+			fflush(stderr);
+		}
 	}
-	if (verbose_flag) {
-		fprintf(stderr, "[process.c (%ld)] wrote hex byte [%02x] to stdout\n",
-				pid, buf[4]);
-		fflush(stderr);
-	}
+
 	store(buf, 5, hash_content, dest_index);
 }
 
@@ -335,7 +338,6 @@ void sha256_process(uint32_t message_block[16], uint32_t hash[8]) {
 	/* prepare message schedule */
 	for (t = 0; t < 64; t++) {
 		if (t < 16) {
-			/* w[t] = ntohl(message_block[t]); */
 			message_ptr = (uint8_t*)&message_block[t];
 			w[t] = message_ptr[0] << 24 | message_ptr[1] << 16 |
 				   message_ptr[2] << 8 | message_ptr[3];
@@ -395,11 +397,6 @@ void sha256_process_final(uint64_t nbyte, short leftover_bytes,
 	}
 
 	/* Set length, process last block */
-	/*
-		((uint64_t*)last_block)[7] = htobe64(nbyte * 8);
-		last_block[14] = htonl(nbyte * 8 >> 32);
-		last_block[15] = htonl(nbyte * 8 & 0xFFFFFFF0);
-	*/
 	((uint8_t*)last_block)[56] = (nbyte * 8 >> (64 - 8)) & 0xFF;
 	((uint8_t*)last_block)[57] = (nbyte * 8 >> (64 - 16)) & 0xFF;
 	((uint8_t*)last_block)[58] = (nbyte * 8 >> (64 - 24)) & 0xFF;
@@ -419,7 +416,7 @@ void print_uint32_array(uint32_t* arr, unsigned long length) {
 	for (i = 0; i < length; i++) {
 		fprintf(stderr, "%08x", arr[i]);
 	}
-	sprintf(stderr, "\n");
+	fprintf(stderr, "\n");
 }
 #endif
 
