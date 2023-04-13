@@ -163,58 +163,38 @@ int main(int argc, char* argv[]) {
     int can_store = 1;
     while((unloaded->head != NULL) || (ready->head != NULL) || (current_p_node != NULL)) {
 
-         // - Check conditions of current process -
-        if (current_p_node!=NULL) {
-            // - Print out and remove completed processes - 
-            if (getTimeLeft(current_p_node->process) == 0) {
-                fprintf(OUTPUT, "%d,FINISHED,process_name=%s,proc_remaining=%d\n",
-                    clock, current_p_node->process->name, ready->size);
-                
-                // Terminate real process
-                uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, PRINT_32BIT_TIMES);
-                kill(current_p_node->process->pid, SIGTERM);
-                read(current_p_node->process->fd_from_c, &sha256, sizeof(sha256));
-                fprintf(OUTPUT, "%d,FINISHED-PROCESS,process_name=%s,sha=%s\n",
-                    clock, current_p_node->process->name, sha256);
-                
+        // - Print out and remove completed processes - 
+        if ((current_p_node!=NULL) && (getTimeLeft(current_p_node->process) == 0)) {
+            fprintf(OUTPUT, "%d,FINISHED,process_name=%s,proc_remaining=%d\n",
+                clock, current_p_node->process->name, ready->size);
+            
+            // Terminate real process
+            uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, PRINT_32BIT_TIMES);
+            kill(current_p_node->process->pid, SIGTERM);
+            read(current_p_node->process->fd_from_c, &sha256, sizeof(sha256));
+            fprintf(OUTPUT, "%d,FINISHED-PROCESS,process_name=%s,sha=%s\n",
+                clock, current_p_node->process->name, sha256);
+            
 
-                // Free simulated memory
-                int loc = getMemLoc(current_p_node->process);
-                int size = getMemSize(current_p_node->process);
-                for (int i=loc; i<loc+size;i++) {
-                    memory[i] = MEM_EMPTY;
-                }
-                memory_left += size;
-                setMemLoc(current_p_node->process, MEM_UNASSIGNED);
-                
-                // Track turnaround
-                temp_turnaround = clock - getReadTime(current_p_node->process);
-                avg_turnaround += temp_turnaround;
-                // Track overhead
-                temp_overhead = temp_turnaround / (float)getServiceTime(current_p_node->process);
-                avg_overhead += temp_overhead;
-                if (temp_overhead > max_overhead) max_overhead = temp_overhead;
-
-                freeNode(current_p_node);
-                current_p_node = NULL;
+            // Free simulated memory
+            int loc = getMemLoc(current_p_node->process);
+            int size = getMemSize(current_p_node->process);
+            for (int i=loc; i<loc+size;i++) {
+                memory[i] = MEM_EMPTY;
             }
+            memory_left += size;
+            setMemLoc(current_p_node->process, MEM_UNASSIGNED);
+            
+            // Track turnaround
+            temp_turnaround = clock - getReadTime(current_p_node->process);
+            avg_turnaround += temp_turnaround;
+            // Track overhead
+            temp_overhead = temp_turnaround / (float)getServiceTime(current_p_node->process);
+            avg_overhead += temp_overhead;
+            if (temp_overhead > max_overhead) max_overhead = temp_overhead;
 
-            // - Otherwise requeue process to ready queue if using RR approach -
-            else if ((scheduler == RR_I) && ready->size>0) {
-                // Suspend real process
-                uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, PRINT_32BIT_TIMES);
-                kill(current_p_node->process->pid, SIGTSTP);
-                // (making sure process is suspended before continuing)
-                int wstatus;
-                pid_t w = waitpid(current_p_node->process->pid, &wstatus, WUNTRACED);
-                if (WIFSTOPPED(wstatus)) {
-                    // todo     -------------- sooner than later lym!!
-                }
-
-                // Requeue simulated process
-                insertLLNode(ready, current_p_node, scheduler);
-                current_p_node = NULL;
-            }
+            freeNode(current_p_node);
+            current_p_node = NULL;
         }
 
 
@@ -277,6 +257,25 @@ int main(int argc, char* argv[]) {
                 }
             }
             insertLLNode(ready, pop(unloaded), scheduler);
+        }
+
+
+        // - Requeue current process to ready queue if using RR approach and another process is available -
+        if ((current_p_node!=NULL) && ((scheduler == RR_I) && ready->size>0)) {
+            // Suspend real process
+            uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, PRINT_32BIT_TIMES);
+            kill(current_p_node->process->pid, SIGTSTP);
+            // (making sure process is suspended before continuing)
+            int wstatus;
+            pid_t w = waitpid(current_p_node->process->pid, &wstatus, WUNTRACED);
+            if (WIFSTOPPED(wstatus)) {
+                // todo     -------------- sooner than later lym!!
+                // while (WIFSTOPPED(wstatus))
+            }
+
+            // Requeue simulated process
+            insertLLNode(ready, current_p_node, scheduler);
+            current_p_node = NULL;
         }
 
 
