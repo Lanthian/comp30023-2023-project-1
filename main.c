@@ -2,7 +2,10 @@
     Created by Liam Anthian: 2023.04.05 for 
     University of Melbourne, COMP30023 Project 1 implementation
 
-    main() implementation of project.
+    main() implementation of the project.
+
+    Makes use of ll.c and proc.c code.
+    Additionally, utilises Steven Tang's process.c code.
 */
 
 #define IMPLEMENTS_REAL_PROCESS
@@ -12,7 +15,7 @@
 #include <string.h>
 #include <math.h>
 
-// todo
+// process.c handling headers
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -153,10 +156,8 @@ int main(int argc, char* argv[]) {
 
     float temp_turnaround, temp_overhead;
 
-    //todo
-    int root = getpid();
+    // Byte array to store sha256 output of processes
     char sha256[64];
-    // pipe(fd);
 
     // Ordering works on the assumption that processes with zero work time cannot exist
     node* current_p_node = NULL;
@@ -170,6 +171,9 @@ int main(int argc, char* argv[]) {
             
             // Terminate real process
             uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, PRINT_32BIT_TIMES);
+            free(time_32bit);
+            time_32bit = NULL;
+
             kill(current_p_node->process->pid, SIGTERM);
             read(current_p_node->process->fd_from_c, &sha256, sizeof(sha256));
             fprintf(OUTPUT, "%d,FINISHED-PROCESS,process_name=%s,sha=%s\n",
@@ -264,13 +268,18 @@ int main(int argc, char* argv[]) {
         if ((current_p_node!=NULL) && ((scheduler == RR_I) && ready->size>0)) {
             // Suspend real process
             uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, PRINT_32BIT_TIMES);
+            free(time_32bit);
+            time_32bit = NULL;
             kill(current_p_node->process->pid, SIGTSTP);
-            // (making sure process is suspended before continuing)
+
+            // (making sure process is suspended before continuing - wait for SIGTSTP signal to take affect)
             int wstatus;
-            pid_t w = waitpid(current_p_node->process->pid, &wstatus, WUNTRACED);
-            if (WIFSTOPPED(wstatus)) {
-                // todo     -------------- sooner than later lym!!
-                // while (WIFSTOPPED(wstatus))
+            while (1) {
+                pid_t w = waitpid(current_p_node->process->pid, &wstatus, WUNTRACED);
+                if (w==-1) {
+                    fprintf(OUTPUT, "ERROR: Error waiting on pid [%d] to change.\n", current_p_node->process->pid);
+                }
+                if (WIFSTOPPED(wstatus)) break;
             }
 
             // Requeue simulated process
@@ -299,8 +308,6 @@ int main(int argc, char* argv[]) {
                 pipe(c_fd);
 
                 c_pid = fork();
-                // printf("Child pid: %d   ", c_pid);          // todo - remove
-
                 // If child process - exec process
                 if (c_pid == 0) {
                     // Link reading and writing of parent and child fd-s
@@ -388,13 +395,15 @@ uint8_t* intToBigEndian(int x) {
         byte = (x>>(24-(8*i)) & 0xFF);
         // For Big Endian start with non zeros (skip precursing zero bytes)
         if ((byte) != 0) start_storing = 1;
+        else {
+            // Place 0 bytes at array end
+            num[3-i] = 0;
+        }
+
+        // All leading 0s skipped - begin storing bytes
         if (start_storing) {
             num[count++] = byte;
         }
-    }
-    // Fill in remaining 0 bytes on end
-    for (count; count<4; count++) {
-        num[count] = 0;
     }
 
     return num;
