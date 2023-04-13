@@ -45,6 +45,8 @@
 
 // Local function headers
 uint8_t* intToBigEndian(int x);
+uint8_t* send32bitTime(Process* process, int time, int print_endian_flag);
+void verifyLeastSigByte(Process* process, uint8_t* time_32bit);
 
 
 int main(int argc, char* argv[]) {
@@ -146,7 +148,6 @@ int main(int argc, char* argv[]) {
 
     //todo
     int root = getpid();
-    int nbytes;
     char readbuffer[80];
     // pipe(fd);
 
@@ -304,36 +305,8 @@ int main(int argc, char* argv[]) {
                     // nbytes = read(fd[0], readbuffer, sizeof(readbuffer));
                     // printf("From child: %s", readbuffer);
 
-                    // Generate 32 bit simulation start time in Big Endian format
-                    uint32_t start_time = current_p_node->process->service_time;
-                    uint8_t* num = intToBigEndian(start_time);
-                    printf("%02x %02x %02x %02x\n", num[0], num[1], num[2], num[3]);        // todo remove
-                    
-                    // Send 32 bit start time to process
-                    nbytes = write(current_p_node->process->fd_to_c, num, (4));
-                    if (nbytes == -1) {
-                        // Failure to write
-                        fprintf(OUTPUT, "Failed to write to process %s of pid [%d], terminating.\n", 
-                            current_p_node->process->name, current_p_node->process->pid);
-                        exit(EXIT_FAILURE);
-                    }
-
-                    // Veryify send success by reading back a least significant byte
-                    uint8_t verifying_byte;
-                    nbytes = read(current_p_node->process->fd_from_c, &verifying_byte, 1);
-                    if (nbytes == -1) {
-                        // Failure to read
-                        fprintf(OUTPUT, "Failed to read from process %s of pid [%d], terminating.\n", 
-                            current_p_node->process->name, current_p_node->process->pid);
-                        exit(EXIT_FAILURE);
-                    }
-                    if (verifying_byte != num[sizeof(num)-1]) {
-                        // Byte sent does not equal byte read back...
-                        printf("ERROR: Byte returned via child process stdout [%02x] does not match byte sent [%02x].\n", 
-                            verifying_byte, num[sizeof(num)-1]);
-                        exit(EXIT_FAILURE);
-                    }
-                    free(num);      // Free up uint8_t array
+                    uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, 1);
+                    verifyLeastSigByte(current_p_node->process, time_32bit);
 
                 } else {
                     // Fork error
@@ -341,8 +314,9 @@ int main(int argc, char* argv[]) {
                     exit(EXIT_FAILURE);
                 }
             } else {
-                // printf("Yeah?\n");
-                // todo
+                // Otherwise, update or resume process with new time
+                // send32bitTime(current_p_node->process, clock, 1);
+                // kill(current_p_node->process->pid, SIGCONT);
             }
             // todo / temp
         
@@ -372,6 +346,10 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
+
+/**
+  Converts a received @param x to / and @returns a uint8_t array of 4 bytes.
+*/
 uint8_t* intToBigEndian(int x) {
     uint8_t *num = (uint8_t*)malloc(sizeof(uint8_t)*4);
     if (num == NULL) {
@@ -397,4 +375,71 @@ uint8_t* intToBigEndian(int x) {
     }
 
     return num;
+}
+
+
+/**
+  Receives a Process* @param process and a simulation time @param time, plus a 
+  boolean flag @param print_endian_flag that determines if a generated `uint8_t`
+  Big Endian time is printed to terminal or not.
+  @returns the simulation time as a uint8_t array of 4 bytes. This value is 
+  malloc-d and needs to be freed later or before any form of termination.
+*/
+uint8_t* send32bitTime(Process* process, int time, int print_endian_flag) {
+    // Generate 32 bit simulation time in Big Endian format
+    uint32_t utime = time;
+    uint8_t* num = intToBigEndian(utime);
+    // Print this value to stdout if desired
+    if (print_endian_flag) {
+        printf("%02x %02x %02x %02x\n", num[0], num[1], num[2], num[3]);
+    }
+    
+    // Send 32 bit start time to process
+    int nbytes = write(process->fd_to_c, num, (4));
+    if (nbytes == -1) {
+        // Failure to write
+        printf("Failed to write to process %s of pid [%d], terminating.\n", 
+            process->name, process->pid);
+        free(num);
+        num = NULL;
+        exit(EXIT_FAILURE);
+    }
+
+    return num;
+}
+
+
+/**
+  Receives a Process* @param process (including it's link to an actual real 
+  process.c process) and verifies that a 32bit time @param time_32bit sent to it
+  was received correctly by checking a least significant byte returned by the 
+  process.
+  Frees `time_32bit` both if successful and if not. 
+*/
+void verifyLeastSigByte(Process* process, uint8_t* time_32bit) {
+    // Veryify send success by reading back a least significant byte
+    uint8_t verifying_byte;
+    int nbytes = read(process->fd_from_c, &verifying_byte, 1);
+    if (nbytes == -1) {
+        // Failure to read
+        printf("Failed to read from process %s of pid [%d], terminating.\n", 
+            process->name, process->pid);
+
+        // Time 32 bit is malloc-d in intToBigEndian() so free before terminating.
+        free(time_32bit);
+        time_32bit = NULL;
+
+        exit(EXIT_FAILURE);
+    } 
+    else if (verifying_byte != time_32bit[sizeof(time_32bit)-1]) {
+        // Byte sent does not equal byte read back...
+        printf("ERROR: Byte returned via child process stdout [%02x] does not match byte sent [%02x].\n", 
+            verifying_byte, time_32bit[sizeof(time_32bit)-1]);
+        exit(EXIT_FAILURE);
+    }
+
+    // Otherwise, done with 32bit simulation time - free uint8_t array ...
+    free(time_32bit);
+
+    // ... and interaction / update was successful!
 }
