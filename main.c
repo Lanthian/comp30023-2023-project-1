@@ -57,6 +57,7 @@
 
 
 // Local function headers
+void freeStructures(linkedList* input, linkedList* ready, node* current);
 int procTechReady(linkedList* queue, int clock);
 uint8_t* intToBigEndian(int x);
 uint8_t* send32bitTime(Process* process, int time, int print_endian_flag);
@@ -189,6 +190,12 @@ int main(int argc, char* argv[]) {
             // Free simulated memory
             int loc = getMemLoc(current_p_node->process);
             int size = getMemSize(current_p_node->process);
+            if (loc+size > STARTING_MEMORY) {
+                // Checked for any leaked errors before accessing illegal memory
+                printf("ERROR: Illegal memory location assigned. Terminating.\n");
+                freeStructures(unloaded, ready, current_p_node);
+                exit(EXIT_FAILURE);
+            }
             for (int i=loc; i<loc+size;i++) {
                 memory[i] = MEM_EMPTY;
             }
@@ -220,19 +227,16 @@ int main(int argc, char* argv[]) {
                         fprintf(OUTPUT, "Process <%s> has an unassignable size of <%d>. Program terminating.\n",
                             unloaded->head->process->name, process_size);
 
-                        freeLinkedList(unloaded);
-                        unloaded = NULL;
-                        freeLinkedList(ready);
-                        ready = NULL;
+                        freeStructures(unloaded, ready, current_p_node);
                         exit(EXIT_FAILURE);
                     }
                     // Otherwise just break and try assigning once freeing up some other processes
                     break;      
                 }
 
-                // Search for a continuous portion of memory to allocate the process
-                int starting_point;
-                for (starting_point=0; starting_point<STARTING_MEMORY;) {
+                // Search for a (the first) continuous portion of memory to allocate the process
+                int starting_point = 0;
+                for (;starting_point<STARTING_MEMORY;) {
                     can_store = 1;
 
                     for (int current_point=starting_point; (current_point<STARTING_MEMORY) && (current_point<starting_point+process_size); current_point++) {
@@ -251,6 +255,12 @@ int main(int argc, char* argv[]) {
                 } 
 
                 if (can_store) {
+                    // Check if starting point to process size range is outside of allowed bounds
+                    if (starting_point+process_size > STARTING_MEMORY) {
+                        // If so, process not yet assignable
+                        break;
+                    }
+
                     // Allocate memory and add process to ready queue.
                     for (int i=starting_point; i<starting_point+process_size; i++) {
                         memory[i] = MEM_FILLED;
@@ -284,6 +294,8 @@ int main(int argc, char* argv[]) {
                 pid_t w = waitpid(current_p_node->process->pid, &wstatus, WUNTRACED);
                 if (w==-1) {
                     fprintf(OUTPUT, "ERROR: Error waiting on pid [%d] to change.\n", current_p_node->process->pid);
+                    freeStructures(unloaded, ready, current_p_node);
+                    exit(EXIT_FAILURE);
                 }
                 if (WIFSTOPPED(wstatus)) break;
             }
@@ -328,6 +340,7 @@ int main(int argc, char* argv[]) {
 
                     // If code reaches here, execv has failed
                     fprintf(OUTPUT, "Failure executing process. Aborting program.\n");
+                    freeStructures(unloaded, ready, current_p_node);
                     exit(EXIT_FAILURE);
 
                 // If parent process - archive pid, fd-s and send start sim time
@@ -347,6 +360,7 @@ int main(int argc, char* argv[]) {
                 } else {
                     // Fork error
                     fprintf(OUTPUT, "Failure forking. Exiting program.\n");
+                    freeStructures(unloaded, ready, current_p_node);
                     exit(EXIT_FAILURE);
                 }
             } else {
@@ -367,10 +381,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Free data structures
-    freeLinkedList(unloaded);
-    unloaded = NULL;
-    freeLinkedList(ready);
-    ready = NULL;
+    freeStructures(unloaded, ready, current_p_node);
 
 
     // --- Print summary ---
@@ -380,6 +391,19 @@ int main(int argc, char* argv[]) {
 
 
     return 0;
+}
+
+
+/*
+  Shorthand function to free used linked lists and current process node.
+*/
+void freeStructures(linkedList* input, linkedList* ready, node* current) {
+    if (input != NULL) freeLinkedList(input);
+    input = NULL;
+    if (ready != NULL) freeLinkedList(ready);
+    ready = NULL;
+    if (current != NULL) freeNode(current);
+    current = NULL;
 }
 
 

@@ -46,11 +46,10 @@ void fprintProcess(FILE* output, Process* process) {
 
 
 /*
-  Frees a Process pointer `process`, also setting the pointer to NULL.
+  Frees a Process pointer `process`. Remember to set to null where called.
 */
 void freeProcess(Process* process) {
     free(process);
-    process = NULL;
 }
 
 

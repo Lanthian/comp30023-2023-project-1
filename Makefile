@@ -1,8 +1,11 @@
+CC=gcc
+CFLAGS=-Wall
+LDFLAGS=-lm
 EXE=allocate
+OBJ=main.o proc.o ll.o
 
 $(EXE): main.o proc.o ll.o
-	gcc -Wall -o $(EXE) main.o proc.o ll.o -lm
-# Includes -lm to link library with math for ceil() function
+	$(CC) $(CFLAGS) -o $(EXE) $(OBJ) $(LDFLAGS)
 
 main.o: main.c ll.h
 	gcc -Wall -o main.o main.c -c
@@ -15,13 +18,4 @@ ll.o: ll.c ll.h
 
 
 clean:
-	rm *.o
-	rm allocate
-
-
-process: process.o
-	gcc -Wall -o process process.o
-
-process.o: process.c
-	gcc -Wall -o process.o process.c -c
-	
+	rm -f *.o $(EXE)
