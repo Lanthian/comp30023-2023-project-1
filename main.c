@@ -55,6 +55,7 @@
 
 
 // Local function headers
+int procTechReady(linkedList* queue, int clock);
 uint8_t* intToBigEndian(int x);
 uint8_t* send32bitTime(Process* process, int time, int print_endian_flag);
 void verifyLeastSigByte(Process* process, uint8_t* time_32bit);
@@ -164,12 +165,13 @@ int main(int argc, char* argv[]) {
     node* current_p_node = NULL;
     int can_store = 1;
     while((unloaded->head != NULL) || (ready->head != NULL) || (current_p_node != NULL)) {
-        // printf("%d -- clock\n", clock);      // todo - remove
 
         // - Print out and remove completed processes - 
         if ((current_p_node!=NULL) && (getTimeLeft(current_p_node->process) == 0)) {
+            // (uses clock-quantum to ensure only processes already potentially loaded are counted)
             fprintf(OUTPUT, "%d,FINISHED,process_name=%s,proc_remaining=%d\n",
-                clock, current_p_node->process->name, ready->size);
+                clock, current_p_node->process->name, 
+                ready->size + procTechReady(unloaded, clock-quantum));
             
             // Terminate real process
             uint8_t* time_32bit = send32bitTime(current_p_node->process, clock, PRINT_32BIT_TIMES);
@@ -376,6 +378,26 @@ int main(int argc, char* argv[]) {
 
 
     return 0;
+}
+
+
+/**
+  Takes a linkedList pointer @param queue and a threshold int @param time.
+  @returns the number of Process processes in the linkedlist that have been read
+  before or equal to the received time. Thus, "technically" ready even if there
+  is no space for them to be stored ready.
+*/
+int procTechReady(linkedList* queue, int time) {
+    int n = 0;
+
+    node* transition_node = queue->head;
+    while (transition_node != NULL) {
+        // Increment count if process is deemed ready from previous quantum
+        if (transition_node->process->read_time < time) n++;
+        transition_node = transition_node->next;
+    }
+    
+    return n;
 }
 
 

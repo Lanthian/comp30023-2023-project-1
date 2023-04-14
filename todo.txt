@@ -1,2 +1,0 @@
-remember to close remaining fds when terminating a process
-remember to free uint8t arrays
