@@ -94,6 +94,7 @@ int main(int argc, char* argv[]) {
                     // Make sure file was opened successfully
                     if (fp == NULL) {
                         printf("Failed to open file [%s]\n", argv[i]);
+                        fclose(fp);
                         exit(EXIT_FAILURE);
                     }
                     break;
@@ -140,7 +141,10 @@ int main(int argc, char* argv[]) {
     // --- Read in processes from file ---
     Process* first_Proc = readInProcess(fp);
     // Abort now if no processes read in or any step fails
-    if (first_Proc == NULL) return 0;
+    if (first_Proc == NULL) {
+        fclose(fp);
+        return 0;
+    }
     // Generate linkedlist with first process
     linkedList* unloaded = createLinkedList(createNode(first_Proc));        // input queue
     linkedList* ready = createEmptyLL();
@@ -152,6 +156,8 @@ int main(int argc, char* argv[]) {
         // Read in next line
         temp_Proc = readInProcess(fp);
     }
+    first_Proc = NULL, temp_Proc = NULL;
+    fclose(fp);
 
 
     // --- Work through processes ---
@@ -162,7 +168,9 @@ int main(int argc, char* argv[]) {
     float temp_turnaround, temp_overhead;
 
     // Byte array to store sha256 output of processes
-    uint8_t sha256[64];
+    char sha256[64+1];
+    // Make sure string array is null terminated
+    sha256[64] = '\0';
 
     // Ordering works on the assumption that processes with zero work time cannot exist
     node* current_p_node = NULL;
@@ -182,7 +190,9 @@ int main(int argc, char* argv[]) {
             time_32bit = NULL;
 
             kill(current_p_node->process->pid, SIGTERM);
-            read(current_p_node->process->fd_from_c, &sha256, sizeof(sha256));
+
+            // Read hash and print
+            read(current_p_node->process->fd_from_c, sha256, 64);
             fprintf(OUTPUT, "%d,FINISHED-PROCESS,process_name=%s,sha=%s\n",
                 clock, current_p_node->process->name, sha256);
             
@@ -236,7 +246,7 @@ int main(int argc, char* argv[]) {
 
                 // Search for a (the first) continuous portion of memory to allocate the process
                 int starting_point = 0;
-                for (;starting_point<STARTING_MEMORY;) {
+                for (;starting_point+process_size<=STARTING_MEMORY;) {
                     can_store = 1;
 
                     for (int current_point=starting_point; (current_point<STARTING_MEMORY) && (current_point<starting_point+process_size); current_point++) {
@@ -255,12 +265,6 @@ int main(int argc, char* argv[]) {
                 } 
 
                 if (can_store) {
-                    // Check if starting point to process size range is outside of allowed bounds
-                    if (starting_point+process_size > STARTING_MEMORY) {
-                        // If so, process not yet assignable
-                        break;
-                    }
-
                     // Allocate memory and add process to ready queue.
                     for (int i=starting_point; i<starting_point+process_size; i++) {
                         memory[i] = MEM_FILLED;

@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall
+CFLAGS=-Wall -g
 LDFLAGS=-lm
 EXE=allocate
 OBJ=main.o proc.o ll.o

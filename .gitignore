@@ -3,3 +3,4 @@ allocate.exe
 allocate
 *.BAK
 BACKUP*/
+valgrind-out.txt
