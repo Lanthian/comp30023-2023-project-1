@@ -10,3 +10,5 @@ The project can be constructed using the Makefile commands
 * make
 which will produce an executable '*allocate.exe*'. This program is then run with
 the command *./allocate -f <input-file> -s [SJF,RR] -m [infinite,best-fit] -q [1,2,3]*
+Please ensure that a working *process.exe* file is included in the directory of 
+*allocate.exe* for the program to run successfully.

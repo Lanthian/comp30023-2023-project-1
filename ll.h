@@ -4,6 +4,8 @@
 
     Contains linkedlist and node implementation where nodes contain Process
     pointers from the proc.h specification.
+
+    Last edited: 2023.04.14
 */
 
 #include "proc.h"

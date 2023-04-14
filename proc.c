@@ -68,12 +68,14 @@ void workProcess(Process* process, int quantum) {
 
 
 /*
-  Compares two processes. Returns a positive integer if the first process is 
-  greater (should be ordered according to SJF) than the second process.
-  Checks in order of service time, arrival time then finally process name.
-  Returns 0 if processes are otherwise determined equal.
+    Compares two processes. Returns a positive integer if the first process is 
+    greater (should be ordered according to SJF) than the second process.
+    Checks in order of service time, arrival time then finally process name.
+    Returns 0 if processes are otherwise determined equal.
 
-  Uses string.h strcmp() function.
+    Uses string.h strcmp() function.
+
+    Last edited: 2023.04.14
 */
 int compareProcess(Process* p1, Process* p2) {
     // Return service time difference...

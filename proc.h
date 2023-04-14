@@ -3,6 +3,8 @@
     University of Melbourne, COMP30023 Project 1 implementation
 
     Contains Process data structure and accompanying functions.
+
+    Last edited: 2023.04.14
 */
 
 #define MAX_NAME_LENGTH 9

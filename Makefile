@@ -13,13 +13,11 @@ proc.o: proc.c proc.h
 ll.o: ll.c ll.h
 	gcc -Wall -o ll.o ll.c -c
 
-format:
-	clang-format -style=file -i *.c
-
 
 clean:
 	rm *.o
-	rm allocate.exe
+	rm allocate
+
 
 process: process.o
 	gcc -Wall -o process process.o
