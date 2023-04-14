@@ -49,8 +49,9 @@
 #define MINUS_INDEX 0
 #define COMMAND_INDEX 1
 
-// process.c togglers
+// process.c togglers and constants
 #define PRINT_32BIT_TIMES 0
+#define NUM_BYTES 4
 
 
 // Local function headers
@@ -157,12 +158,13 @@ int main(int argc, char* argv[]) {
     float temp_turnaround, temp_overhead;
 
     // Byte array to store sha256 output of processes
-    char sha256[64];
+    uint8_t sha256[64];
 
     // Ordering works on the assumption that processes with zero work time cannot exist
     node* current_p_node = NULL;
     int can_store = 1;
     while((unloaded->head != NULL) || (ready->head != NULL) || (current_p_node != NULL)) {
+        // printf("%d -- clock\n", clock);      // todo - remove
 
         // - Print out and remove completed processes - 
         if ((current_p_node!=NULL) && (getTimeLeft(current_p_node->process) == 0)) {
@@ -317,7 +319,7 @@ int main(int argc, char* argv[]) {
                     dup2(p_fd[0], STDIN_FILENO);    // new stdin of child (reading from p-out)
                     dup2(c_fd[1], STDOUT_FILENO);   // new stdout of child (writing to c-out)
 
-                    char* args[] = {"./process", current_p_node->process->name, "-v", NULL};
+                    char* args[] = {"./process", current_p_node->process->name, NULL};
                     execv(args[0], args);
 
                     // If code reaches here, execv has failed
@@ -378,32 +380,23 @@ int main(int argc, char* argv[]) {
 
 
 /**
-  Converts a received @param x to / and @returns a uint8_t array of 4 bytes.
+  Converts a received @param x to / and @returns a uint8_t array of NUM_BYTES 
+  bytes.
 */
 uint8_t* intToBigEndian(int x) {
-    uint8_t *num = (uint8_t*)malloc(sizeof(uint8_t)*4);
+    uint8_t *num = (uint8_t*)malloc(sizeof(uint8_t)*NUM_BYTES);
     if (num == NULL) {
         // No space, print error and return NULL
         printf("Error - no space in memory to malloc byte array");
         return NULL;
     }
 
-    int count = 0, start_storing = 0;
     uint8_t byte;
     // Iterate through number, breaking into bytes with bitwise operators
-    for (int i = 0; i<4; i++) {
-        byte = (x>>(24-(8*i)) & 0xFF);
-        // For Big Endian start with non zeros (skip precursing zero bytes)
-        if ((byte) != 0) start_storing = 1;
-        else {
-            // Place 0 bytes at array end
-            num[3-i] = 0;
-        }
-
-        // All leading 0s skipped - begin storing bytes
-        if (start_storing) {
-            num[count++] = byte;
-        }
+    for (int i = 0; i<NUM_BYTES; i++) {
+        byte = (x>>(8*(NUM_BYTES-1-i)) & 0xFF);
+        // Store bytes
+        num[i] = byte;
     }
 
     return num;
@@ -414,8 +407,8 @@ uint8_t* intToBigEndian(int x) {
   Receives a Process* @param process and a simulation time @param time, plus a 
   boolean flag @param print_endian_flag that determines if a generated `uint8_t`
   Big Endian time is printed to terminal or not.
-  @returns the simulation time as a uint8_t array of 4 bytes. This value is 
-  malloc-d and needs to be freed later or before any form of termination.
+  @returns the simulation time as a uint8_t array of NUM_BYTES bytes. This value 
+  is malloc-d and needs to be freed later or before any form of termination.
 */
 uint8_t* send32bitTime(Process* process, int time, int print_endian_flag) {
     // Generate 32 bit simulation time in Big Endian format
@@ -423,11 +416,13 @@ uint8_t* send32bitTime(Process* process, int time, int print_endian_flag) {
     uint8_t* num = intToBigEndian(utime);
     // Print this value to stdout if desired
     if (print_endian_flag) {
-        printf("%02x %02x %02x %02x\n", num[0], num[1], num[2], num[3]);
+        int i;
+        for (i=0; i<NUM_BYTES-1; i++) printf("%02x ", num[i]);
+        printf("%02x\n", num[i]);
     }
     
     // Send 32 bit start time to process
-    int nbytes = write(process->fd_to_c, num, (4));
+    int nbytes = write(process->fd_to_c, num, NUM_BYTES);
     if (nbytes == -1) {
         // Failure to write
         printf("Failed to write to process %s of pid [%d], terminating.\n", 
@@ -463,10 +458,10 @@ void verifyLeastSigByte(Process* process, uint8_t* time_32bit) {
 
         exit(EXIT_FAILURE);
     } 
-    else if (verifying_byte != time_32bit[sizeof(time_32bit)-1]) {
+    else if (verifying_byte != time_32bit[NUM_BYTES-1]) {
         // Byte sent does not equal byte read back...
         printf("ERROR: Byte returned via child process stdout [%02x] does not match byte sent [%02x].\n", 
-            verifying_byte, time_32bit[sizeof(time_32bit)-1]);
+            verifying_byte, time_32bit[NUM_BYTES-1]);
         exit(EXIT_FAILURE);
     }
 
